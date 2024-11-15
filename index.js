@@ -1,11 +1,11 @@
 const connectToAri = require('./src/ariClient');
 const { handleStasisStart } = require('./src/stasisApp');
-
+const channelVariables = new Map();
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
         console.log('ARI client connected')
-        ari.on('StasisStart', (event, channel) => {
+        ari.on('StasisStart', async(event, channel) => {
             const isHuman = parseInt(event.args[0]) === 1;  // First argument
             console.log('Is Human: ' + isHuman)
             //let args = {};
@@ -21,30 +21,47 @@ connectToAri()
 
             //console.log(`Channel ${channel.id} started in Stasis app`);
             //console.log(`isHuman: ${isHuman}, Lead ID: ${leadId}, Queue Name: ${queueName}`);
+            try {
+                const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
+                const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
+                const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
+                const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
+        
+                const variables = {
+                    leadId: leadIdResult.value,
+                    campaign: campaignResult.value,
+                    dspMode: dspModeResult.value,
+                    isTransfer: isTransferResult.value,
+                };
+        
+                console.log('Storing variables for channel:', channel.id, variables);
+        
+                // Store variables in the global Map
+                channelVariables.set(channel.id, variables);
+            } catch (err) {
+                console.error('Error retrieving variables during StasisStart:', err);
+            }
         });
 
         ari.on('ChannelHangupRequest', async (event, channel) => {
             console.log(`Channel ${channel.id} has hung up`);
 
             try {
-                // Retrieve variables associated with the channel
-                const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
-                const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
-                const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
-                const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
-                const leadId = leadIdResult.value;
-                const campaign = campaignResult.value;
-                const dspMode = dspModeResult.value;
-                const isTransfer = isTransferResult.value;
+                const variables = channelVariables.get(channel.id);
 
-                const hangupCause = event.cause;
-                console.log(`Retrieved variables - LEADID: ${leadId}, CAMPAIGN: ${campaign}, DSPMODE: ${dspMode}, ISTRANSFER: ${isTransfer}, Hangup cause: ${hangupCause}`);
-
-                if (!leadId || !campaign) {
+                if (!variables) {
+                    console.error(`No stored variables found for channel: ${channel.id}`);
                     return;
                 }
-
-
+        
+                console.log('Retrieved variables from global Map:', variables);
+        
+                const { leadId, campaign, dspMode, isTransfer } = variables;
+        
+                if (!leadId || !campaign) {
+                    console.error('Missing required variables: LEADID or CAMPAIGN');
+                    return;
+                }
                 // Update your database when a call is hung up
                 const [result] = await db.query(
                     'DELETE FROM placed_calls WHERE lead_id = ?, campaign = ?',
