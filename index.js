@@ -1,7 +1,11 @@
 const connectToAri = require('./src/ariClient');
 const { handleStasisStart } = require('./src/stasisApp');
+const getAgentBridgeId = require('./src/ORM/getAgentBridgeId')
 const channelVariables = new Map();
 const db = require('./src/db');
+const Config = require('./config');
+const config = new Config('/etc/gnudialer.conf');
+const serverId = config('asterisk.server_id')
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
@@ -41,6 +45,36 @@ connectToAri()
                 channelVariables.set(channel.id, variables);
             } catch (err) {
                 console.error('Error retrieving variables during StasisStart:', err);
+            }
+        });
+
+        ari.on('ChannelStateChange', async (event, channel) => {
+            console.log('ON ChannelStateChange is channel.state', channel.state)
+            if (channel.state === 'Up') {
+                console.log(`Channel ${channel.id} answered.`);
+
+                const variables = channelVariables.get(channel.id);
+                const { leadId, campaign, dspMode, isTransfer } = variables;
+                if (campaign) {
+                    // Fetch the agent's bridge ID
+                    const bridgeId = await getAgentBridgeId(campaign, serverId);
+                    if (!bridgeId) {
+                        // ADD ABANDONED
+                        console.error(`No bridge found for campaign: ${campaign}. Hanging up.`);
+                        await channel.hangup();
+                        return;
+                    }
+
+                    // Add the callee's channel to the bridge
+                    try {
+                        const bridge = ari.bridges.get({ bridgeId });
+                        await bridge.addChannel({ channel: channel.id });
+                        console.log(`Added channel ${channel.id} to bridge ${bridgeId}`);
+                    } catch (err) {
+                        console.error(`Error adding channel to bridge ${bridgeId}:`, err);
+                        await channel.hangup();
+                    }
+                }
             }
         });
 
@@ -93,7 +127,7 @@ connectToAri()
                         break;
                 }
                 if (channel.state === 'Up') {
-                    console.log('The call was answered.',channel.state);
+                    console.log('The call was answered.', channel.state);
                 } else {
                     console.log('The call was not answered.', channel.state);
                     dispo = -2
