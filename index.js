@@ -3,7 +3,7 @@ const { handleStasisStart } = require('./src/stasisApp');
 const getAgentBridgeId = require('./src/ORM/getAgentBridgeId')
 const channelVariables = new Map();
 const db = require('./src/db');
-const Config = require('./config');
+const Config = require('./src/config');
 const config = new Config('/etc/gnudialer.conf');
 const serverId = config('asterisk.server_id')
 // Start the ARI client connection
