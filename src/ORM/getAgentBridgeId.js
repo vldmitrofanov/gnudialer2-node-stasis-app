@@ -10,8 +10,8 @@ async function getAgentBridgeId(campaign, serverId) {
         [campaign,serverId]
     );
     if (rows.length > 0) {
-        console.log(`Found bridge ID for campaign ${campaign}: ${rows[0].bridge_id}`);
-        return rows[0].bridge_id;
+        console.log(`Found bridge ID for campaign ${campaign}: ${rows[0].id}`);
+        return rows[0].id;
     } else {
         console.error(`No available agents found for campaign: ${campaign}`);
         return null;
