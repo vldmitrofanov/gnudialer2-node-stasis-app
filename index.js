@@ -1,7 +1,7 @@
 const connectToAri = require('./src/ariClient');
 const { handleStasisStart } = require('./src/stasisApp');
 const channelVariables = new Map();
-const db = require('./db');
+const db = require('./src/db');
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
