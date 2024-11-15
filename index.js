@@ -85,9 +85,10 @@ connectToAri()
                     }
 
                     try {
+                        await channel.setChannelVar({ variable: 'CONF_BRIDGE_ID', value: bridgeId });
                         await channel.continueInDialplan({
                             context: 'join_confbridge', // Defined in your dialplan
-                            extension: bridgeId, // The bridge ID passed to the ConfBridge application
+                            extension: 's', // The bridge ID passed to the ConfBridge application
                             priority: 1
                         });
                         console.log(`Channel ${channel.id} redirected to ConfBridge with ID ${bridgeId}`);
