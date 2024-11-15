@@ -84,14 +84,15 @@ connectToAri()
                         return;
                     }
 
-                    // Add the callee's channel to the bridge
                     try {
-                        const bridge = ari.bridges.get({ bridgeId });
-                        await bridge.addChannel({ channel: channel.id });
-                        console.log(`Added channel ${channel.id} to bridge ${bridgeId}`);
+                        await channel.continueInDialplan({
+                            context: 'join_confbridge', // Defined in your dialplan
+                            extension: bridgeId, // The bridge ID passed to the ConfBridge application
+                            priority: 1
+                        });
+                        console.log(`Channel ${channel.id} redirected to ConfBridge with ID ${bridgeId}`);
                     } catch (err) {
-                        console.error(`Error adding channel to bridge ${bridgeId}:`, err);
-                        await channel.hangup();
+                        console.error(`Error redirecting channel to ConfBridge: ${err.message}`);
                     }
                 }
             }
