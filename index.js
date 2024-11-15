@@ -5,7 +5,7 @@ const channelVariables = new Map();
 const db = require('./src/db');
 const Config = require('./src/config');
 const config = new Config('/etc/gnudialer.conf');
-const serverId = config('asterisk.server_id')
+const serverId = config.get('asterisk.server_id')
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
