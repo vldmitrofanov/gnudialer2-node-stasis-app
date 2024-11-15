@@ -73,18 +73,30 @@ connectToAri()
                 console.log('Hangup cause:', hangupCause);
                 let dispo = null;
                 switch (hangupCause) {
+                    case 1:
+                        // bad number
+                        dispo = -7;
+                        break;
                     case 'CONGESTION':
                         dispo = -5;
                         break;
-                    case 'NO_ANSWER':
+                    case 19:
+                        //no answer
                         dispo = -2;
                         break;
-                    case 'BUSY':
+                    case 17:
+                        // BUSY
                         dispo = -4;
                         break;
                     case 'UNKNOWN':
                         dispo = -1
                         break;
+                }
+                if (channel.stateDesc === 'Up') {
+                    console.log('The call was answered.',channel.stateDesc);
+                } else {
+                    console.log('The call was not answered.', channel.stateDesc);
+                    dispo = -2
                 }
                 if (dispo !== null) {
                     const [result2] = await db.query(
@@ -102,3 +114,51 @@ connectToAri()
     })
     .catch(err => console.error('Failed to start ARI client:', err));
 
+
+/*
+
+HANGUP CAUSES
+
+1	Unallocated number
+3	No route to destination
+6	Channel unacceptable
+16	Normal clearing
+17	User busy
+18	No user responding
+19	No answer from user
+20	Subscriber absent
+21	Call rejected
+22	Number changed
+26	Non-selected user clearing
+27	Destination out of order
+28	Invalid number format
+31	Normal, unspecified
+34	No circuit/channel available
+38	Network out of order
+41	Temporary failure
+42	Switching equipment congestion
+43	Access information discarded
+44	Requested circuit/channel not available
+47	Resource unavailable, unspecified
+49	Quality of service unavailable
+50	Requested facility not subscribed
+52	Outgoing calls barred within CUG
+54	Incoming calls barred within CUG
+57	Bearer capability not authorized
+58	Bearer capability not presently available
+65	Bearer capability not implemented
+79	Service or option not implemented, unspecified
+87	User not member of CUG
+88	Incompatible destination
+95	Invalid message, unspecified
+96	Mandatory information element missing
+97	Message type non-existent or not implemented
+98	Message not compatible with call state
+99	Information element nonexistent or not implemented
+100	Invalid information element contents
+101	Message not implemented, unspecified
+102	Recovery on timer expiry
+111	Protocol error, unspecified
+
+
+*/
