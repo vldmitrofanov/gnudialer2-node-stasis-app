@@ -24,19 +24,26 @@ connectToAri()
 
         ari.on('ChannelHangupRequest', async (event, channel) => {
             console.log(`Channel ${channel.id} has hung up`);
-      
+
             try {
                 // Retrieve variables associated with the channel
-                const leadId = await channel.getChannelVar('LEADID');
-                const campaign = await channel.getChannelVar('CAMPAIGN');
-                const dspMode = await channel.getChannelVar('DSPMODE');
-                const isTransfer = await channel.getChannelVar('ISTRANSFER');
+                const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
+                const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
+                const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
+                const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
+                const leadId = leadIdResult.value;
+                const campaign = campaignResult.value;
+                const dspMode = dspModeResult.value;
+                const isTransfer = isTransferResult.value;
+
                 const hangupCause = event.cause;
-                if(!leadId || !campaign) {
+                console.log(`Retrieved variables - LEADID: ${leadId}, CAMPAIGN: ${campaign}, DSPMODE: ${dspMode}, ISTRANSFER: ${isTransfer}, Hangup cause: ${hangupCause}`);
+
+                if (!leadId || !campaign) {
                     return;
-                }      
-                console.log(`Retrieved variables - LEADID: ${leadId}, CAMPAIGN: ${campaign}, DSPMODE: ${dspMode}, ISTRANSFER: ${isTransfer}`);
-        
+                }
+
+
                 // Update your database when a call is hung up
                 const [result] = await db.query(
                     'DELETE FROM placed_calls WHERE lead_id = ?, campaign = ?',
@@ -44,13 +51,13 @@ connectToAri()
                 );
                 const leadTableName = 'campaign_' + campaign
                 let dispo = null;
-                switch(hangupCause) {
+                switch (hangupCause) {
                     case 'CONGESTION':
                         dispo = -5;
                         break;
                     case 'NO_ANSWER':
                         dispo = -2;
-                        break; 
+                        break;
                     case 'BUSY':
                         dispo = -4;
                         break;
@@ -59,13 +66,13 @@ connectToAri()
                     'UPDATE ' + leadTableName + ' SET disposition = ? WHERE id = ?',
                     [dispo, leadId]
                 );
-        
+
                 console.log('Database updated successfully for channel:', channel.id);
             } catch (err) {
                 console.error('Error retrieving variables or updating database:', err);
             }
-          });
-    
+        });
+
     })
     .catch(err => console.error('Failed to start ARI client:', err));
 
