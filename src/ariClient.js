@@ -1,7 +1,7 @@
 const AriClient = require('ari-client');
 const Config = require('./config');
 const config = new Config('/etc/gnudialer.conf');
-const db = require('./db');
+
 
 async function connectToAri() {
     try {
