@@ -14,7 +14,7 @@ async function connectToAri() {
             ariUser,
             ariSecret
         );
-
+        console.log(`http://${ariHost}:${ariPort}`);
         const appName = config.get('ari.app_name') || 'gnudialer_stasis_app';
         ari.on('StasisStart', (event, channel) => {
             const isHuman = parseInt(event.args[0]) === 1;  // First argument
