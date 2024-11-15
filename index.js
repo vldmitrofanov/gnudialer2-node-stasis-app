@@ -65,7 +65,7 @@ connectToAri()
                 }
                 // Update your database when a call is hung up
                 const [result] = await db.query(
-                    'DELETE FROM placed_calls WHERE lead_id = ? AND campaign = ?',
+                    'DELETE FROM placed_calls WHERE leadid = ? AND campaign = ?',
                     [leadId, campaign]
                 );
                 const leadTableName = 'campaign_' + campaign
