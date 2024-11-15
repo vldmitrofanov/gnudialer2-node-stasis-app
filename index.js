@@ -92,10 +92,10 @@ connectToAri()
                         dispo = -1
                         break;
                 }
-                if (channel.stateDesc === 'Up') {
-                    console.log('The call was answered.',channel.stateDesc);
+                if (channel.state === 'Up') {
+                    console.log('The call was answered.',channel.state);
                 } else {
-                    console.log('The call was not answered.', channel.stateDesc);
+                    console.log('The call was not answered.', channel.state);
                     dispo = -2
                 }
                 if (dispo !== null) {
