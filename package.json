@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "ari-client": "^2.2.0"
+    "ari-client": "^2.2.0",
+    "mysql2": "^3.11.4"
   }
 }
