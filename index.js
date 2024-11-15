@@ -52,7 +52,26 @@ connectToAri()
             console.log('ON ChannelStateChange is channel.state', channel.state)
             if (channel.state === 'Up') {
                 console.log(`Channel ${channel.id} answered.`);
-
+                try {
+                    const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
+                    const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
+                    const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
+                    const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
+    
+                    const variables = {
+                        leadId: leadIdResult.value,
+                        campaign: campaignResult.value,
+                        dspMode: dspModeResult.value,
+                        isTransfer: isTransferResult.value,
+                    };
+    
+                    console.log('Storing variables for channel:', channel.id, variables);
+    
+                    // Store variables in the global Map
+                    channelVariables.set(channel.id, variables);
+                } catch (err) {
+                    console.error('Error retrieving variables during StasisStart:', err);
+                }
                 const variables = channelVariables.get(channel.id);
                 const { leadId, campaign, dspMode, isTransfer } = variables;
                 if (campaign) {
