@@ -2,6 +2,7 @@ const connectToAri = require('./src/ariClient');
 const { handleStasisStart } = require('./src/stasisApp');
 const getAgentBridgeId = require('./src/ORM/getAgentBridgeId')
 const channelVariables = new Map();
+let applicationType;
 const db = require('./src/db');
 const Config = require('./src/config');
 const config = new Config('/etc/gnudialer.conf');
@@ -13,9 +14,9 @@ connectToAri()
     .then((ari) => {
         console.log('ARI client connected')
         ari.on('StasisStart', async (event, channel) => {
-            const applicationType = event.args[0]
+            applicationType = event.args[0]
             console.log('starting aplication type ', applicationType)
-            switch(applicationType) {
+            switch (applicationType) {
                 case 'agent_bridge':
                     const agentId = event.args[1];
                     const serverId = event.args[2];
@@ -27,90 +28,99 @@ connectToAri()
                         serverId: serverId
                     })
                     break;
+                default:
+                    const isHuman = parseInt(event.args[1]) === 1;  // First argument
+                    console.log('Is Human: ' + isHuman)
+                    try {
+                        const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
+                        const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
+                        const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
+                        const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
+
+                        const variables = {
+                            leadId: leadIdResult.value,
+                            campaign: campaignResult.value,
+                            dspMode: dspModeResult.value,
+                            isTransfer: isTransferResult.value,
+                        };
+
+                        console.log('Storing variables for channel:', channel.id, variables);
+
+                        // Store variables in the global Map
+                        channelVariables.set(channel.id, variables);
+                    } catch (err) {
+                        console.error('Error retrieving variables during StasisStart:', err);
+                    }
+                    break;
             }
-            const isHuman = parseInt(event.args[0]) === 1;  // First argument
-            console.log('Is Human: ' + isHuman)
-            try {
-                const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
-                const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
-                const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
-                const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
 
-                const variables = {
-                    leadId: leadIdResult.value,
-                    campaign: campaignResult.value,
-                    dspMode: dspModeResult.value,
-                    isTransfer: isTransferResult.value,
-                };
-
-                console.log('Storing variables for channel:', channel.id, variables);
-
-                // Store variables in the global Map
-                channelVariables.set(channel.id, variables);
-            } catch (err) {
-                console.error('Error retrieving variables during StasisStart:', err);
-            }
         });
 
         ari.on('ChannelStateChange', async (event, channel) => {
-            console.log('ON ChannelStateChange is channel.state', channel.state)
-            if (channel.state === 'Up') {
-                console.log(`Channel ${channel.id} answered.`);
-                try {
-                    const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
-                    const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
-                    const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
-                    const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
-    
-                    const variables = {
-                        leadId: leadIdResult.value,
-                        campaign: campaignResult.value,
-                        dspMode: dspModeResult.value,
-                        isTransfer: isTransferResult.value,
-                    };
-    
-                    console.log('Storing variables for channel:', channel.id, variables);
-    
-                    // Store variables in the global Map
-                    channelVariables.set(channel.id, variables);
-                } catch (err) {
-                    console.error('Error retrieving variables during StasisStart:', err);
-                }
-                const variables = channelVariables.get(channel.id);
-                const { leadId, campaign, dspMode, isTransfer } = variables;
-                if (campaign) {
-                    // Fetch the agent's bridge ID
-                    const bridgeName = await getAgentBridgeId(campaign, serverId);
-                    if (!bridgeName) {
-                        // TODO: ADD ABANDONED
-                        console.error(`No bridge found for campaign: ${campaign}. Hanging up.`);
-                        await channel.hangup();
-                        return;
-                    }
-                    const bridgeId = await getBridgeIdByName(ari,bridgeName)
-                    if (bridgeId) {
-                        console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
-        
-                        // Add a channel to the bridge if needed
-                        await ari.bridges.addChannel({
-                            bridgeId: bridgeId,
-                            channel: channel.id // Replace with the channel ID
-                        });
-                        console.log(`Channel added to bridge "${bridgeName}"`);
-                    }
-                    /*
+            console.log('ON ChannelStateChange is channel.state', channel.state, 'application: ', applicationType)
+            if (applicationType === 'agent_bridge') {
+
+            } else {
+
+
+                if (channel.state === 'Up') {
+                    console.log(`Channel ${channel.id} answered.`);
                     try {
-                        await channel.setChannelVar({ variable: 'CONF_BRIDGE_ID', value: bridgeId });
-                        await channel.continueInDialplan({
-                            context: 'join_confbridge', // Defined in your dialplan
-                            extension: 's', // The bridge ID passed to the ConfBridge application
-                            priority: 1
-                        });
-                        console.log(`Channel ${channel.id} redirected to ConfBridge with ID ${bridgeId}`);
+                        const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
+                        const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
+                        const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
+                        const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
+
+                        const variables = {
+                            leadId: leadIdResult.value,
+                            campaign: campaignResult.value,
+                            dspMode: dspModeResult.value,
+                            isTransfer: isTransferResult.value,
+                        };
+
+                        console.log('Storing variables for channel:', channel.id, variables);
+
+                        // Store variables in the global Map
+                        channelVariables.set(channel.id, variables);
                     } catch (err) {
-                        console.error(`Error redirecting channel to ConfBridge: ${err.message}`);
+                        console.error('Error retrieving variables during StasisStart:', err);
                     }
-                        */
+                    const variables = channelVariables.get(channel.id);
+                    const { leadId, campaign, dspMode, isTransfer } = variables;
+                    if (campaign) {
+                        // Fetch the agent's bridge ID
+                        const bridgeName = await getAgentBridgeId(campaign, serverId);
+                        if (!bridgeName) {
+                            // TODO: ADD ABANDONED
+                            console.error(`No bridge found for campaign: ${campaign}. Hanging up.`);
+                            await channel.hangup();
+                            return;
+                        }
+                        const bridgeId = await getBridgeIdByName(ari, bridgeName)
+                        if (bridgeId) {
+                            console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
+
+                            // Add a channel to the bridge if needed
+                            await ari.bridges.addChannel({
+                                bridgeId: bridgeId,
+                                channel: channel.id // Replace with the channel ID
+                            });
+                            console.log(`Channel added to bridge "${bridgeName}"`);
+                        }
+                        /*
+                        try {
+                            await channel.setChannelVar({ variable: 'CONF_BRIDGE_ID', value: bridgeId });
+                            await channel.continueInDialplan({
+                                context: 'join_confbridge', // Defined in your dialplan
+                                extension: 's', // The bridge ID passed to the ConfBridge application
+                                priority: 1
+                            });
+                            console.log(`Channel ${channel.id} redirected to ConfBridge with ID ${bridgeId}`);
+                        } catch (err) {
+                            console.error(`Error redirecting channel to ConfBridge: ${err.message}`);
+                        }
+                            */
+                    }
                 }
             }
         });
