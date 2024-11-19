@@ -16,39 +16,42 @@ connectToAri()
         ari.on('StasisStart', async (event, channel) => {
             applicationType = event.args[0]
             console.log('starting aplication type ', applicationType)
-            if (applicationType === 'agent_bridge') {
-                const agentId = event.args[1];
-                const serverId = event.args[2];
-                runAgentJoinBridge({
-                    ari: ari,
-                    event: event,
-                    channel: channel,
-                    agentId: agentId,
-                    serverId: serverId
-                })
-            } else {
-                const isHuman = parseInt(event.args[1]) === 1;  // First argument
-                console.log('Is Human: ' + isHuman)
-                try {
-                    const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
-                    const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
-                    const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
-                    const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
+            switch (applicationType) {
+                case 'agent_bridge':
+                    const agentId = event.args[1];
+                    const serverId = event.args[2];
+                    runAgentJoinBridge({
+                        ari: ari,
+                        event: event,
+                        channel: channel,
+                        agentId: agentId,
+                        serverId: serverId
+                    })
+                    break;
+                default:
+                    const isHuman = parseInt(event.args[1]) === 1;  // First argument
+                    console.log('Is Human: ' + isHuman)
+                    try {
+                        const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
+                        const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
+                        const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
+                        const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
 
-                    const variables = {
-                        leadId: leadIdResult.value,
-                        campaign: campaignResult.value,
-                        dspMode: dspModeResult.value,
-                        isTransfer: isTransferResult.value,
-                    };
+                        const variables = {
+                            leadId: leadIdResult.value,
+                            campaign: campaignResult.value,
+                            dspMode: dspModeResult.value,
+                            isTransfer: isTransferResult.value,
+                        };
 
-                    console.log('Storing variables for channel:', channel.id, variables);
+                        console.log('Storing variables for channel:', channel.id, variables);
 
-                    // Store variables in the global Map
-                    channelVariables.set(channel.id, variables);
-                } catch (err) {
-                    console.error('Error retrieving variables during StasisStart:', err);
-                }
+                        // Store variables in the global Map
+                        channelVariables.set(channel.id, variables);
+                    } catch (err) {
+                        console.error('Error retrieving variables during StasisStart:', err);
+                    }
+                    break;
             }
 
         });
