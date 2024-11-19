@@ -6,27 +6,30 @@ const db = require('./src/db');
 const Config = require('./src/config');
 const config = new Config('/etc/gnudialer.conf');
 const serverId = config.get('asterisk.server_id')
-const getBriggeIdByName = require('./src/ARI/getBriggeIdByName')
+const getBridgeIdByName = require('./src/ARI/getBridgeIdByName')
+cinst 
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
         console.log('ARI client connected')
         ari.on('StasisStart', async (event, channel) => {
+            const applicationType = event.args[0]
+            console.log('starting aplication type ', applicationType)
+            switch(applicationType) {
+                case 'agent_bridge':
+                    const agentId = event.args[1];
+                    const serverId = event.args[2];
+                    runAgentJoinBridge({
+                        ari: ari,
+                        event: event,
+                        channel: channel,
+                        agentId: agentId,
+                        serverId: serverId
+                    })
+                    break;
+            }
             const isHuman = parseInt(event.args[0]) === 1;  // First argument
             console.log('Is Human: ' + isHuman)
-            //let args = {};
-            //try {
-            //    args = JSON.parse(event.args[1]);  // Second argument (appArgs JSON)
-            //} catch (err) {
-            //    console.error('Failed to parse appArgs JSON:', err);
-            //    return;
-            //}
-
-            //const leadId = args.leadId;
-            //const queueName = args.queueName;
-
-            //console.log(`Channel ${channel.id} started in Stasis app`);
-            //console.log(`isHuman: ${isHuman}, Lead ID: ${leadId}, Queue Name: ${queueName}`);
             try {
                 const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
                 const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
@@ -84,7 +87,7 @@ connectToAri()
                         await channel.hangup();
                         return;
                     }
-                    const bridgeId = await getBriggeIdByName(ari,bridgeName)
+                    const bridgeId = await getBridgeIdByName(ari,bridgeName)
                     if (bridgeId) {
                         console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
         
