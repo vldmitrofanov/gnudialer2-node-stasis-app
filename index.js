@@ -6,6 +6,7 @@ const db = require('./src/db');
 const Config = require('./src/config');
 const config = new Config('/etc/gnudialer.conf');
 const serverId = config.get('asterisk.server_id')
+const getBriggeIdByName = require('./src/ARIgetBriggeIdByName')
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
@@ -83,7 +84,7 @@ connectToAri()
                         await channel.hangup();
                         return;
                     }
-                    const bridgeId = await getBridgeIdByName(bridgeName)
+                    const bridgeId = await getBridgeIdByName(ari,bridgeName)
                     if (bridgeId) {
                         console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
         
