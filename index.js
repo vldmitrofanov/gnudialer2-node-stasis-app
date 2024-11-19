@@ -6,7 +6,7 @@ const db = require('./src/db');
 const Config = require('./src/config');
 const config = new Config('/etc/gnudialer.conf');
 const serverId = config.get('asterisk.server_id')
-const getBriggeIdByName = require('./src/ARIgetBriggeIdByName')
+const getBriggeIdByName = require('./src/ARI/getBriggeIdByName')
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
