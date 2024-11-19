@@ -7,7 +7,7 @@ const Config = require('./src/config');
 const config = new Config('/etc/gnudialer.conf');
 const serverId = config.get('asterisk.server_id')
 const getBridgeIdByName = require('./src/ARI/getBridgeIdByName')
-cinst 
+const runAgentJoinBridge = require('./src/runAgentJoinBridge')
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
