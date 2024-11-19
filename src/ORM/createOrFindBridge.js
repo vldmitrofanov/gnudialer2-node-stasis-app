@@ -23,6 +23,7 @@ async function createOrFindBridge(agentId, serverId) {
             );
             bridgeRecord = newBridgeRecord;
         }
+        console.log('bridgeRecord', bridgeRecord)
 
         const bridgeName = bridgeRecord.id.toString();
 
