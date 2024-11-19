@@ -5,7 +5,7 @@ async function updateBridge({ id, bridgeId, online, available, pause, serverId }
         // Update the bridge record in the database
         const [result] = await db.query(
             `
-            UPDATE cong_bridges
+            UPDATE conf_bridges
             SET 
                 bridge_id = ?, 
                 online = ?, 
