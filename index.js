@@ -76,14 +76,25 @@ connectToAri()
                 const { leadId, campaign, dspMode, isTransfer } = variables;
                 if (campaign) {
                     // Fetch the agent's bridge ID
-                    const bridgeId = await getAgentBridgeId(campaign, serverId);
-                    if (!bridgeId) {
-                        // ADD ABANDONED
+                    const bridgeName = await getAgentBridgeId(campaign, serverId);
+                    if (!bridgeName) {
+                        // TODO: ADD ABANDONED
                         console.error(`No bridge found for campaign: ${campaign}. Hanging up.`);
                         await channel.hangup();
                         return;
                     }
-
+                    const bridgeId = await getBridgeIdByName(bridgeName)
+                    if (bridgeId) {
+                        console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
+        
+                        // Add a channel to the bridge if needed
+                        await client.bridges.addChannel({
+                            bridgeId: bridgeId,
+                            channel: channel.id // Replace with the channel ID
+                        });
+                        console.log(`Channel added to bridge "${bridgeName}"`);
+                    }
+                    /*
                     try {
                         await channel.setChannelVar({ variable: 'CONF_BRIDGE_ID', value: bridgeId });
                         await channel.continueInDialplan({
@@ -95,6 +106,7 @@ connectToAri()
                     } catch (err) {
                         console.error(`Error redirecting channel to ConfBridge: ${err.message}`);
                     }
+                        */
                 }
             }
         });
