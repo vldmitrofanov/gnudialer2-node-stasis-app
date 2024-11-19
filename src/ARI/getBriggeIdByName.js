@@ -1,3 +1,5 @@
+const util = require('util');
+
 async function getBridgeIdByName(ari, bridgeName) {
     try {
         // Fetch all bridges managed by ARI
