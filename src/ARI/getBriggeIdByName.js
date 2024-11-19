@@ -18,3 +18,4 @@ async function getBridgeIdByName(ari, bridgeName) {
         throw err;
     }
 }
+module.exports = getBridgeIdByName;

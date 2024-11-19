@@ -84,7 +84,7 @@ connectToAri()
                         await channel.hangup();
                         return;
                     }
-                    const bridgeId = await getBridgeIdByName(ari,bridgeName)
+                    const bridgeId = await getBriggeIdByName(ari,bridgeName)
                     if (bridgeId) {
                         console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
         
