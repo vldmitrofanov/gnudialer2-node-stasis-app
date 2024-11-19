@@ -32,7 +32,7 @@ const runAgentJoinBridge = async ({
             pause: 0,
             serverId: serverId
         })
-        console.log(`Database updated for bridge ID: ${dbBridge.id}`);
+        //console.log(`Database updated for bridge ID: ${bridgeName}`);
     } catch (err) {
         console.error('Error in runAgentJoinBridge:', err);
     }
