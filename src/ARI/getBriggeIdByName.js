@@ -1,10 +1,10 @@
-const util = require('util');
+//const util = require('util');
 
 async function getBridgeIdByName(ari, bridgeName) {
     try {
         // Fetch all bridges managed by ARI
         const bridges = await ari.bridges.list();
-        console.log(`Retrieved bridges: ${util.inspect(bridges, { depth: 2, colors: true })}`);
+        //console.log(`Retrieved bridges: ${util.inspect(bridges, { depth: 2, colors: true })}`);
         // Look for the bridge with the matching name
         const bridge = bridges.find(b => b.name && b.name.trim() === String(bridgeName).trim());
 

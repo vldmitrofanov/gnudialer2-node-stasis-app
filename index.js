@@ -89,7 +89,7 @@ connectToAri()
                         console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
         
                         // Add a channel to the bridge if needed
-                        await client.bridges.addChannel({
+                        await ari.bridges.addChannel({
                             bridgeId: bridgeId,
                             channel: channel.id // Replace with the channel ID
                         });
