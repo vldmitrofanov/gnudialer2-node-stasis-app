@@ -57,12 +57,10 @@ connectToAri()
         });
 
         ari.on('ChannelStateChange', async (event, channel) => {
-            console.log('ON ChannelStateChange is channel.state', channel.state, 'application: ', applicationType)
+            console.log('ON ChannelStateChange is channel.state', channel.state, ' | application: ', applicationType)
             if (applicationType === 'agent_bridge') {
 
             } else {
-
-
                 if (channel.state === 'Up') {
                     console.log(`Channel ${channel.id} answered.`);
                     try {
@@ -190,6 +188,32 @@ connectToAri()
             } catch (err) {
                 console.error('Error retrieving variables or updating database:', err);
             }
+        });
+
+        ari.on('ChannelEnteredBridge', async (event) => {
+            const bridgeId = event.bridge.id;
+            const channelId = event.channel.id;
+        
+            console.log(`Channel ${channelId} joined bridge ${bridgeId}`);
+        
+            // Check participant count in the bridge
+            const bridge = await ari.bridges.get({ bridgeId });
+            if (bridge.channels.length === 1) {
+                console.log(`Only one participant in bridge ${bridgeId}. Playing notification...`);
+                
+                // Play a beep or message to the channel
+                await ari.channels.play({
+                    channelId,
+                    media: 'sound:conf-onlyperson',
+                });
+            }
+        });
+        
+        ari.on('ChannelLeftBridge', async (event) => {
+            const bridgeId = event.bridge.id;
+            const channelId = event.channel.id;
+        
+            console.log(`Channel ${channelId} left bridge ${bridgeId}`);
         });
 
     })
