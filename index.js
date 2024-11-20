@@ -9,6 +9,8 @@ const config = new Config('/etc/gnudialer.conf');
 const serverId = config.get('asterisk.server_id')
 const getBridgeIdByName = require('./src/ARI/getBridgeIdByName')
 const runAgentJoinBridge = require('./src/runAgentJoinBridge')
+const patchBridge = require('./src/ORM/patchBridge')
+const incrementQueueNumbers = require('./src/ORM/incrementQueueNumbers')
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
@@ -86,24 +88,45 @@ connectToAri()
                     const variables = channelVariables.get(channel.id);
                     const { leadId, campaign, dspMode, isTransfer } = variables;
                     if (campaign) {
-                        // Fetch the agent's bridge ID
-                        const bridgeName = await getAgentBridgeId(campaign, serverId);
-                        if (!bridgeName) {
-                            // TODO: ADD ABANDONED
-                            console.error(`No bridge found for campaign: ${campaign}. Hanging up.`);
-                            await channel.hangup();
-                            return;
-                        }
-                        const bridgeId = await getBridgeIdByName(ari, bridgeName)
-                        if (bridgeId) {
-                            console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
+                        let bridgeFound = false;
+                        try {
+                            // Attempt to find or retry finding a bridge
+                            while (!bridgeFound) {
+                                // Fetch the agent's bridge ID
+                                const bridgeName = await getAgentBridgeId(campaign, serverId);
+                                if (!bridgeName) {
+                                    console.error(`No bridge found for campaign: ${campaign}. Hanging up.`);
+                                    incrementQueueNumbers(campaign,[{ param: 'abandons', val: 1 }])
+                                    await channel.hangup();
+                                    return;
+                                }
+                                const bridgeId = await getBridgeIdByName(ari, bridgeName, 1)
+                                if (bridgeId) {
+                                    try {
+                                        console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
 
-                            // Add a channel to the bridge if needed
-                            await ari.bridges.addChannel({
-                                bridgeId: bridgeId,
-                                channel: channel.id // Replace with the channel ID
-                            });
-                            console.log(`Channel added to bridge "${bridgeName}"`);
+                                        // Add a channel to the bridge if needed
+                                        await ari.bridges.addChannel({
+                                            bridgeId: bridgeId,
+                                            channel: channel.id // Replace with the channel ID
+                                        });
+                                        await patchBridge(bridgeName, [{ param: 'available', val: 0 }])
+                                        console.log(`Channel added to bridge "${bridgeName}"`);
+                                        bridgeFound = true;
+                                    } catch (err) {
+                                        console.error(`Error adding channel to bridge "${bridgeName}":`, err);
+                                        // Mark the bridge as problematic
+                                        await patchBridge(bridgeName, [{ param: 'available', val: 0 }, { param: 'pause', val: 1 }]);
+                                        console.log(`Marked bridge "${bridgeName}" as unavailable.`);
+                                    }
+                                } else {
+                                    console.error(`No valid bridge found with the name "${bridgeName}".`);
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Error finding or assigning bridge:', err);
+                            incrementQueueNumbers(campaign,[{ param: 'abandons', val: 1 }])
+                            await channel.hangup();
                         }
                         /*
                         try {
@@ -193,14 +216,14 @@ connectToAri()
         ari.on('ChannelEnteredBridge', async (event) => {
             const bridgeId = event.bridge.id;
             const channelId = event.channel.id;
-        
+
             console.log(`Channel ${channelId} joined bridge ${bridgeId}`);
-        
+
             // Check participant count in the bridge
             const bridge = await ari.bridges.get({ bridgeId });
             if (bridge.channels.length === 1) {
                 console.log(`Only one participant in bridge ${bridgeId}. Playing notification...`);
-                
+
                 // Play a beep or message to the channel
                 await ari.channels.play({
                     channelId,
@@ -208,11 +231,11 @@ connectToAri()
                 });
             }
         });
-        
+
         ari.on('ChannelLeftBridge', async (event) => {
             const bridgeId = event.bridge.id;
             const channelId = event.channel.id;
-        
+
             console.log(`Channel ${channelId} left bridge ${bridgeId}`);
         });
 
