@@ -87,6 +87,12 @@ connectToAri()
                     }
                     const variables = channelVariables.get(channel.id);
                     const { leadId, campaign, dspMode, isTransfer } = variables;
+                    if(campaign && leadId) {
+                        const [result] = await db.query(
+                            'UPDATE placed_calls SET answered = 1 WHERE leadid = ? AND campaign = ?',
+                            [leadId, campaign]
+                        );
+                    }
                     if (campaign) {
                         let bridgeFound = false;
                         try {
