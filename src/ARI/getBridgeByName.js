@@ -1,6 +1,6 @@
 //const util = require('util');
 
-async function getBridgeIdByName(ari, bridgeName, maxUsers = null) {
+async function getBridgeByName(ari, bridgeName) {
     try {
         // Fetch all bridges managed by ARI
         const bridges = await ari.bridges.list();
@@ -9,17 +9,17 @@ async function getBridgeIdByName(ari, bridgeName, maxUsers = null) {
         const bridge = bridges.find(b => b.name && b.name.trim() === String(bridgeName).trim());
 
         if (bridge) {
-            const userCount = bridge.channels ? bridge.channels.length : 0;
+            //const userCount = bridge.channels ? bridge.channels.length : 0;
 
             // Check if the number of users (channels) matches the criteria
-            if (maxUsers !== null && userCount !== maxUsers) {
-                console.log(
-                    `Bridge "${bridgeName}" found, but it has ${userCount} users. Expected: ${maxUsers}.`
-                );
-                return null;
-            }
+            //if (maxUsers !== null && userCount !== maxUsers) {
+            //    console.log(
+            //        `Bridge "${bridgeName}" found, but it has ${userCount} users. Expected: ${maxUsers}.`
+            //    );
+            //   return null;
+            //}
             console.log(`Found bridge with name "${bridgeName}" and ID "${bridge.id}"`);
-            return bridge.id;
+            return bridge;
         } else {
             console.log(`No bridge found with the name "${bridgeName}"`);
             return null;
@@ -29,4 +29,4 @@ async function getBridgeIdByName(ari, bridgeName, maxUsers = null) {
         throw err;
     }
 }
-module.exports = getBridgeIdByName;
+module.exports = getBridgeByName;
