@@ -6,11 +6,13 @@ let applicationType;
 const db = require('./src/db');
 const Config = require('./src/config');
 const config = new Config('/etc/gnudialer.conf');
-const serverId = config.get('asterisk.server_id')
+let SERVERID = config.get('asterisk.server_id')
 const getBridgeByName = require('./src/ARI/getBridgeByName')
+const getBridgeByAgentId = require('./src/ORM/getBridgeByAgentId')
 const runAgentJoinBridge = require('./src/runAgentJoinBridge')
 const patchBridge = require('./src/ORM/patchBridge')
 const incrementQueueNumbers = require('./src/ORM/incrementQueueNumbers')
+const getChannelVariables = require('./src/getChannelVariables');
 // Start the ARI client connection
 connectToAri()
     .then((ari) => {
@@ -21,30 +23,21 @@ connectToAri()
             switch (applicationType) {
                 case 'agent_bridge':
                     const agentId = event.args[1];
-                    const serverId = event.args[2];
+                    SERVERID = event.args[2];
                     runAgentJoinBridge({
                         ari: ari,
                         event: event,
                         channel: channel,
                         agentId: agentId,
-                        serverId: serverId
+                        serverId: SERVERID
                     })
                     break;
                 default:
                     const isHuman = parseInt(event.args[1]) === 1;  // First argument
                     console.log('Is Human: ' + isHuman)
                     try {
-                        const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
-                        const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
-                        const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
-                        const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
-
-                        const variables = {
-                            leadId: leadIdResult.value,
-                            campaign: campaignResult.value,
-                            dspMode: dspModeResult.value,
-                            isTransfer: isTransferResult.value,
-                        };
+                        const variablesToFetch = ['LEADID', 'CAMPAIGN', 'DSPMODE', 'ISTRANSFER', 'AGENTID', 'METHOD'];
+                        const variables = await getChannelVariables(ari, channel.id, variablesToFetch);
 
                         console.log('Storing variables for channel:', channel.id, variables);
 
@@ -66,99 +59,100 @@ connectToAri()
                 if (channel.state === 'Up') {
                     console.log(`Channel ${channel.id} answered.`);
                     try {
-                        const leadIdResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'LEADID' });
-                        const campaignResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'CAMPAIGN' });
-                        const dspModeResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'DSPMODE' });
-                        const isTransferResult = await ari.channels.getChannelVar({ channelId: channel.id, variable: 'ISTRANSFER' });
-
-                        const variables = {
-                            leadId: leadIdResult.value,
-                            campaign: campaignResult.value,
-                            dspMode: dspModeResult.value,
-                            isTransfer: isTransferResult.value,
-                        };
+                        const variablesToFetch = ['LEADID', 'CAMPAIGN', 'DSPMODE', 'ISTRANSFER', 'AGENTID', 'METHOD'];
+                        const variables = await getChannelVariables(ari, channel.id, variablesToFetch);
 
                         console.log('Storing variables for channel:', channel.id, variables);
 
                         // Store variables in the global Map
                         channelVariables.set(channel.id, variables);
                     } catch (err) {
-                        console.error('Error retrieving variables during StasisStart:', err);
+                        console.error('Error retrieving variables during ChannelStateChange:', err);
                     }
                     const variables = channelVariables.get(channel.id);
-                    const { leadId, campaign, dspMode, isTransfer } = variables;
-                    if (campaign && leadId) {
-                        const [result] = await db.query(
-                            'UPDATE placed_calls SET answered = 1 WHERE leadid = ? AND campaign = ?',
-                            [leadId, campaign]
-                        );
-                    }
-                    if (campaign) {
-                        let bridgeFound = false;
-                        try {
-                            // Attempt to find or retry finding a bridge
-                            while (!bridgeFound) {
-                                // Fetch the agent's bridge ID
-                                const bridgeName = await getAgentBridgeId(campaign, serverId);
-                                if (!bridgeName) {
-                                    console.error(`No bridge found for campaign: ${campaign}. Hanging up.`);
-                                    incrementQueueNumbers(campaign, [{ param: 'abandons', val: 1 }])
-                                    await channel.hangup();
-                                    return;
-                                }
-                                const bridge = await getBridgeByName(ari, bridgeName)
-                                if (bridge) {
-                                    const userCount = bridge.channels ? bridge.channels.length : 0;
-                                    if (userCount !== 1) {
-                                        console.log(
-                                            `Bridge "${bridgeName}" found, but it has ${userCount} users. Expected: 1.`
-                                        );
-                                        await patchBridge(bridgeName, [{ param: 'available', val: 0 }])
+                    const { leadid, campaign, dspmode, istransfer, agentid, method } = variables;
+                    if (method === 'auto') {
+                        if (campaign && leadid) {
+                            const [result] = await db.query(
+                                'UPDATE placed_calls SET answered = 1 WHERE leadid = ? AND campaign = ?',
+                                [leadid, campaign]
+                            );
+                        }
+                        if (campaign) {
+                            let bridgeFound = false;
+                            try {
+                                // Attempt to find or retry finding a bridge
+                                while (!bridgeFound) {
+                                    // Fetch the agent's bridge ID
+                                    const bridgeName = await getAgentBridgeId(campaign, SERVERID);
+                                    if (!bridgeName) {
+                                        console.error(`No bridge found for campaign: ${campaign}. Hanging up.`);
+                                        incrementQueueNumbers(campaign, [{ param: 'abandons', val: 1 }])
+                                        await channel.hangup();
+                                        return;
                                     }
-                                    const bridgeId = bridge.id
-                                    if (bridgeId) {
-                                        try {
-                                            console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
-
-                                            // Add a channel to the bridge if needed
-                                            await ari.bridges.addChannel({
-                                                bridgeId: bridgeId,
-                                                channel: channel.id // Replace with the channel ID
-                                            });
+                                    const bridge = await getBridgeByName(ari, bridgeName)
+                                    if (bridge) {
+                                        const userCount = bridge.channels ? bridge.channels.length : 0;
+                                        if (userCount !== 1) {
+                                            console.log(
+                                                `Bridge "${bridgeName}" found, but it has ${userCount} users. Expected: 1.`
+                                            );
                                             await patchBridge(bridgeName, [{ param: 'available', val: 0 }])
-                                            console.log(`Channel added to bridge "${bridgeName}"`);
-                                            bridgeFound = true;
-                                        } catch (err) {
-                                            console.error(`Error adding channel to bridge "${bridgeName}":`, err);
-                                            // Mark the bridge as problematic
-                                            await patchBridge(bridgeName, [{ param: 'available', val: 0 }, { param: 'pause', val: 1 }]);
-                                            console.log(`Marked bridge "${bridgeName}" as unavailable.`);
+                                        }
+                                        const bridgeId = bridge.id
+                                        if (bridgeId) {
+                                            try {
+                                                console.log(`Bridge ID for "${bridgeName}":`, bridgeId);
+
+                                                // Add a channel to the bridge if needed
+                                                await ari.bridges.addChannel({
+                                                    bridgeId: bridgeId,
+                                                    channel: channel.id // Replace with the channel ID
+                                                });
+                                                await patchBridge(bridgeName, [{ param: 'available', val: 0 }])
+                                                console.log(`Channel added to bridge "${bridgeName}"`);
+                                                bridgeFound = true;
+                                            } catch (err) {
+                                                console.error(`Error adding channel to bridge "${bridgeName}":`, err);
+                                                // Mark the bridge as problematic
+                                                await patchBridge(bridgeName, [{ param: 'available', val: 0 }, { param: 'pause', val: 1 }]);
+                                                console.log(`Marked bridge "${bridgeName}" as unavailable.`);
+                                            }
+                                        } else {
+                                            console.error(`No valid bridge found with the name "${bridgeName}".`);
                                         }
                                     } else {
-                                        console.error(`No valid bridge found with the name "${bridgeName}".`);
+                                        await patchBridge(bridgeName, [{ param: 'available', val: 0 }])
                                     }
-                                } else {
-                                    await patchBridge(bridgeName, [{ param: 'available', val: 0 }])
                                 }
+                            } catch (err) {
+                                console.error('Error finding or assigning bridge:', err);
+                                incrementQueueNumbers(campaign, [{ param: 'abandons', val: 1 }])
+                                await channel.hangup();
                             }
-                        } catch (err) {
-                            console.error('Error finding or assigning bridge:', err);
-                            incrementQueueNumbers(campaign, [{ param: 'abandons', val: 1 }])
-                            await channel.hangup();
+                            /*
+                            try {
+                                await channel.setChannelVar({ variable: 'CONF_BRIDGE_ID', value: bridgeId });
+                                await channel.continueInDialplan({
+                                    context: 'join_confbridge', // Defined in your dialplan
+                                    extension: 's', // The bridge ID passed to the ConfBridge application
+                                    priority: 1
+                                });
+                                console.log(`Channel ${channel.id} redirected to ConfBridge with ID ${bridgeId}`);
+                            } catch (err) {
+                                console.error(`Error redirecting channel to ConfBridge: ${err.message}`);
+                            }
+                                */
                         }
-                        /*
-                        try {
-                            await channel.setChannelVar({ variable: 'CONF_BRIDGE_ID', value: bridgeId });
-                            await channel.continueInDialplan({
-                                context: 'join_confbridge', // Defined in your dialplan
-                                extension: 's', // The bridge ID passed to the ConfBridge application
-                                priority: 1
+                    } else if(method == 'manual') {
+                        if(agentid) {
+                            const bridge = await getBridgeByAgentId(agentid, SERVERID)
+                            await ari.bridges.addChannel({
+                                bridgeId: bridge.id,
+                                channel: channel.id 
                             });
-                            console.log(`Channel ${channel.id} redirected to ConfBridge with ID ${bridgeId}`);
-                        } catch (err) {
-                            console.error(`Error redirecting channel to ConfBridge: ${err.message}`);
                         }
-                            */
                     }
                 }
             }
@@ -177,16 +171,16 @@ connectToAri()
 
                 console.log('Retrieved variables from global Map:', variables);
 
-                const { leadId, campaign, dspMode, isTransfer } = variables;
+                const { leadid, campaign, dspmode, istransfer } = variables;
 
-                if (!leadId || !campaign) {
+                if (!leadid || !campaign) {
                     console.error('Missing required variables: LEADID or CAMPAIGN');
                     return;
                 }
                 // Update your database when a call is hung up
                 const [result] = await db.query(
                     'DELETE FROM placed_calls WHERE leadid = ? AND campaign = ?',
-                    [leadId, campaign]
+                    [leadid, campaign]
                 );
                 const leadTableName = 'campaign_' + campaign
                 const hangupCause = event.cause || 'UNKNOWN';
@@ -221,7 +215,7 @@ connectToAri()
                 if (dispo !== null) {
                     const [result2] = await db.query(
                         'UPDATE ' + leadTableName + ' SET disposition = ? WHERE id = ?',
-                        [dispo, leadId]
+                        [dispo, leadid]
                     );
 
                     console.log('Database updated successfully for channel:', channel.id);
