@@ -153,11 +153,11 @@ connectToAri()
                                 console.log(`Bridge ID for "${bridge.name}":`, bridge.id);
 
                                 await ari.bridges.addChannel({
-                                    bridgeId: bridge.id,
+                                    bridgeId: bridge.bridge_id,
                                     channel: channel.id
                                 });
                             } catch (err) {
-                                console.error(`Error adding channel to bridge "${bridge.name}":`, err);
+                                console.error(`Error adding channel to bridge "${bridge.id}":`, err);
                             }
                         } else {
                             console.log('ERROR: no agent ID was caught in manual dial method')
