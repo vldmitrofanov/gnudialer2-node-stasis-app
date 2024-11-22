@@ -146,6 +146,7 @@ connectToAri()
                                 */
                         }
                     } else if (method == 'manual') {
+                        console.log('manual dial')
                         if (agentid) {
                             const bridge = await getBridgeByAgentId(agentid, SERVERID)
                             try {
@@ -158,6 +159,8 @@ connectToAri()
                             } catch (err) {
                                 console.error(`Error adding channel to bridge "${bridge.name}":`, err);
                             }
+                        } else {
+                            console.log('ERROR: no agent ID was caught in manual dial method')
                         }
                     }
                 }
