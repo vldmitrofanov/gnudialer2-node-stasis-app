@@ -145,13 +145,19 @@ connectToAri()
                             }
                                 */
                         }
-                    } else if(method == 'manual') {
-                        if(agentid) {
+                    } else if (method == 'manual') {
+                        if (agentid) {
                             const bridge = await getBridgeByAgentId(agentid, SERVERID)
-                            await ari.bridges.addChannel({
-                                bridgeId: bridge.id,
-                                channel: channel.id 
-                            });
+                            try {
+                                console.log(`Bridge ID for "${bridge.name}":`, bridge.id);
+
+                                await ari.bridges.addChannel({
+                                    bridgeId: bridge.id,
+                                    channel: channel.id
+                                });
+                            } catch (err) {
+                                console.error(`Error adding channel to bridge "${bridge.name}":`, err);
+                            }
                         }
                     }
                 }
