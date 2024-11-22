@@ -163,7 +163,7 @@ connectToAri()
                             console.log('ERROR: no agent ID was caught in manual dial method')
                         }
                     } else if (method == '3way') {
-                        console.log('manual dial')
+                        console.log('3way dial')
                         if (agentid) {
                             const bridge = await getBridgeByAgentId(agentid, SERVERID)
                             try {
@@ -177,7 +177,7 @@ connectToAri()
                                 console.error(`Error adding channel to bridge "${bridge.id}":`, err);
                             }
                         } else {
-                            console.log('ERROR: no agent ID was caught in manual dial method')
+                            console.log('ERROR: no agent ID was caught in 3way dial method')
                         }
                     }
                 }
