@@ -162,6 +162,23 @@ connectToAri()
                         } else {
                             console.log('ERROR: no agent ID was caught in manual dial method')
                         }
+                    } else if (method == '3way') {
+                        console.log('manual dial')
+                        if (agentid) {
+                            const bridge = await getBridgeByAgentId(agentid, SERVERID)
+                            try {
+                                console.log(`Bridge ID for "${bridge.name}":`, bridge.id);
+
+                                await ari.bridges.addChannel({
+                                    bridgeId: bridge.bridge_id,
+                                    channel: channel.id
+                                });
+                            } catch (err) {
+                                console.error(`Error adding channel to bridge "${bridge.id}":`, err);
+                            }
+                        } else {
+                            console.log('ERROR: no agent ID was caught in manual dial method')
+                        }
                     }
                 }
             }
