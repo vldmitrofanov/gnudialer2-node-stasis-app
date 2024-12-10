@@ -1,4 +1,4 @@
-const db = require('../db');
+const db = require('../../db');
 async function createOrFindBridge(agentId, serverId) {
     try {
         // Check if a bridge already exists in the database

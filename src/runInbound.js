@@ -1,16 +1,21 @@
 const createOrFindBridge = require('./ORM/Bridge/createOrFindBridge')
-const updateBridge = require('./ORM/Bridge/updateBridge')
+const updateBridge = require('./ORM/Bridge/updateBridge');
+const getInboundByNumber = require('./ORM/Inbound/getInboundByNumber');
 
 const runAgentJoinBridge = async ({
     ari,
     event,
     channel,
-    agentId,
     serverId
 }) => {
     try {
-        const bridgeName = await createOrFindBridge(agentId, serverId);
-        const bridges = await ari.bridges.list();
+            // Retrieve the EXTEN variable to get the dialed number
+            const dialedNumber = await ari.channels.getChannelVar({ 
+                channelId: channel.id, 
+                variable: 'EXTEN' 
+            });
+        const inbound = await getInboundByNumber(dialedNumber, serverId);
+        /* const bridges = await ari.bridges.list();
         let ariBridge = bridges.find((bridge) => bridge.name === bridgeName);
 
         if (!ariBridge) {
@@ -31,7 +36,7 @@ const runAgentJoinBridge = async ({
             available: 1,
             pause: 0,
             serverId: serverId
-        })
+        }) */
         //console.log(`Database updated for bridge ID: ${bridgeName}`);
     } catch (err) {
         console.error('Error in runAgentJoinBridge:', err);

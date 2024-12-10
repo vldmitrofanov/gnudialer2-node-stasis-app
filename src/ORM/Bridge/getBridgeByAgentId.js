@@ -1,4 +1,4 @@
-const db = require('../db');
+const db = require('../../db');
 async function getBridgeByAgentId(agentId, serverId) {
     let query = "SELECT * FROM conf_bridges "         
                 "WHERE conf_bridges.agent_id = ? AND conf_bridges.server_id = ? "

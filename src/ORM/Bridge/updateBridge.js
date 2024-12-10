@@ -1,4 +1,4 @@
-const db = require('../db');
+const db = require('../../db');
 
 async function updateBridge({ id, bridgeId, online, available, pause, serverId }) {
     try {

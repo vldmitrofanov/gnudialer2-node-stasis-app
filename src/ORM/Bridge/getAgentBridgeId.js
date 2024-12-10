@@ -1,4 +1,4 @@
-const db = require('../db');
+const db = require('../../db');
 async function getAgentBridgeId(campaign, serverId) {
     let query = "SELECT conf_bridges.id FROM conf_bridges "
     query +="LEFT JOIN agent_queue ON conf_bridges.agent_id = agent_queue.agent_id "

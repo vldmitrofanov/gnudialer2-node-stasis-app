@@ -1,17 +1,18 @@
 const connectToAri = require('./src/ariClient');
 const { handleStasisStart } = require('./src/stasisApp');
-const getAgentBridgeId = require('./src/ORM/getAgentBridgeId')
+const getAgentBridgeId = require('./src/ORM/Bridge/getAgentBridgeId')
 const channelVariables = new Map();
 let applicationType;
 const db = require('./src/db');
 const Config = require('./src/config');
 const config = new Config('/etc/gnudialer.conf');
-let SERVERID = config.get('asterisk.server_id')
-const getBridgeByName = require('./src/ARI/getBridgeByName')
-const getBridgeByAgentId = require('./src/ORM/getBridgeByAgentId')
-const runAgentJoinBridge = require('./src/runAgentJoinBridge')
-const patchBridge = require('./src/ORM/patchBridge')
-const incrementQueueNumbers = require('./src/ORM/incrementQueueNumbers')
+let SERVERID = config.get('asterisk.server_id');
+const getBridgeByName = require('./src/ARI/Bridge/getBridgeByName');
+const getBridgeByAgentId = require('./src/ORM/Bridge/getBridgeByAgentId');
+const runAgentJoinBridge = require('./src/runAgentJoinBridge');
+const runInbound = require('./src/runInbound');
+const patchBridge = require('./src/ORM/Bridge/patchBridge');
+const incrementQueueNumbers = require('./src/ORM/Queue/incrementQueueNumbers')
 const getChannelVariables = require('./src/getChannelVariables');
 // Start the ARI client connection
 connectToAri()
@@ -29,6 +30,15 @@ connectToAri()
                         event: event,
                         channel: channel,
                         agentId: agentId,
+                        serverId: SERVERID
+                    })
+                    break;
+                case 'inbound':
+                    SERVERID = event.args[1];
+                    runInbound({
+                        ari: ari,
+                        event: event,
+                        channel: channel,
                         serverId: SERVERID
                     })
                     break;
